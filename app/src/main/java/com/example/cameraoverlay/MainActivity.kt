@@ -1,15 +1,13 @@
 package com.example.cameraoverlay
 
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.MediaController
-import android.widget.Toast
-import android.widget.VideoView
+import android.widget.*
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -28,19 +26,23 @@ class MainActivity : AppCompatActivity() {
     private var imageCapture: ImageCapture? = null
     lateinit var video: VideoView
     private lateinit var outputDirectory: File
+    private lateinit var frameLayout: FrameLayout
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var viewFinder:PreviewView
-
+    private lateinit var play : ImageButton
+    private  val uri= Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         video=findViewById(R.id.video)
+        play=findViewById(R.id.play);
         viewFinder=findViewById(R.id.viewFinder)
+        frameLayout=findViewById(R.id.frame);
 
         val mediaController= MediaController(this)
         mediaController.setAnchorView(video)
         video.setMediaController(mediaController)
-        val uri= Uri.parse("http://d27wqx0d95irnd.cloudfront.net/bueno_main")
+
         video.setMediaController(MediaController(this))
         video.setVideoURI(uri)
 
@@ -61,14 +63,11 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
 
-    private fun takePhoto() {
+    private fun capturePhoto() {
         val imageCapture = imageCapture ?: return
 
         // Create time-stamped output file to hold the image
-        val photoFile = File(
-            outputDirectory,
-            SimpleDateFormat(FILENAME_FORMAT, Locale.US
-            ).format(System.currentTimeMillis()) + ".jpg")
+        val photoFile = File(outputDirectory, SimpleDateFormat(FILENAME_FORMAT, Locale.US).format(System.currentTimeMillis()) + ".jpg")
 
         // Create output options object which contains file + metadata
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
@@ -84,7 +83,6 @@ class MainActivity : AppCompatActivity() {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     val savedUri = Uri.fromFile(photoFile)
                     val msg = "Photo capture succeeded: $savedUri"
-                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
                     Log.d(TAG, msg)
                 }
             })
@@ -137,7 +135,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if(video.isPlaying){
         video.stopPlayback()
+            frameLayout.visibility=View.GONE
+        video.visibility=View.GONE;
+        play.setImageDrawable(getDrawable(R.drawable.ic_baseline_play_circle_filled_24));}
         super.onDestroy()
         cameraExecutor.shutdown()
     }
@@ -146,7 +148,7 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "CameraXBasic"
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS = arrayOf(android.Manifest.permission.CAMERA, android.Manifest.permission.INTERNET, android.Manifest.permission.READ_EXTERNAL_STORAGE,android.Manifest.permission.WRITE_EXTERNAL_STORAGE,android.Manifest.permission.ACCESS_NETWORK_STATE)
+        private val REQUIRED_PERMISSIONS = arrayOf(android.Manifest.permission.CAMERA, android.Manifest.permission.READ_EXTERNAL_STORAGE,android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
@@ -165,16 +167,38 @@ class MainActivity : AppCompatActivity() {
 
         if(!video.isPlaying)
         {
+            video.setVideoURI(uri)
+            frameLayout.visibility=View.VISIBLE
             video.visibility= View.VISIBLE
             video.setZOrderOnTop(true)
             video.start()
-            v.visibility=View.GONE
+            video.setOnPreparedListener(MediaPlayer.OnPreparedListener {
+               it.start()
+            })
+
+            play.setImageDrawable(getDrawable(R.drawable.ic_baseline_stop_circle_24))
+        }
+        else
+        {
+            video.stopPlayback();
+            video.visibility=View.GONE;
+            frameLayout.visibility=View.GONE
+            play.setImageDrawable(getDrawable(R.drawable.ic_baseline_play_circle_filled_24));
         }
 
     }
+     fun takePhoto(view: View)
+     {
+         capturePhoto();
+     }
 
     override fun onPause() {
+        if (video.isPlaying){
         video.stopPlayback()
+            frameLayout.visibility=View.GONE
+        video.visibility=View.GONE;
+        play.setImageDrawable(getDrawable(R.drawable.ic_baseline_play_circle_filled_24));}
         super.onPause()
     }
+
 }
